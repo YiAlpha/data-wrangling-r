@@ -1,0 +1,10 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+example_kelvin <- 282.15
+```
+
+For example, degrees Kelvin corresponds to `r example_kelvin - 273.15` degrees Celsius.

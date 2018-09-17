@@ -1,0 +1,4 @@
+"0","leaflet(cities) %>% "
+"0","  addTiles() %>%"
+"0","  addCircles(lng = ~Long, lat = ~Lat, weight = 1,"
+"0","    radius = ~sqrt(Pop) * 30, popup = ~City)"

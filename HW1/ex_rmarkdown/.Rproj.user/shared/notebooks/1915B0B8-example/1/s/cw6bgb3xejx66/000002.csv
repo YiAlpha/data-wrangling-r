@@ -1,0 +1,2 @@
+"0","dygraph(nhtemp, main = ""New Haven Temperatures"") %>% "
+"0","  dyRangeSelector(dateWindow = c(""1920-01-01"", ""1960-01-01""))"
