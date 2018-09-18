@@ -17,6 +17,7 @@ always_allow_html: yes
 ---
 
 ```{r setup, include=FALSE}
+# show the code for this document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
@@ -44,10 +45,10 @@ Note that the `echo = FALSE` parameter was added to the code chunk to prevent pr
 
 By default, your R notebook chunks will be run using R. However, it's entirely possible to write chunks that use other engines to execute. For instance, you can add some Python to your notebook:
 
-```{r eval=TRUE, engine='python'}
+```{r eval= True, engine='python'}
 friends = ['john', 'pat', 'gary', 'michael']
 for i, name in enumerate(friends):
-    print "iteration {iteration} is {name}".format( 
+    print "iteration {iteration} is {name}".format(
     iteration=i, name=name)
 ```
 
@@ -61,10 +62,12 @@ And you can convert the result to Fahrenheit with the formula
 $$ fahrenheit = celsius \times \frac{9}{5} + 32 $$
 
 ```{r, echo = FALSE, results = 'hide'}
+# create a object
 example_kelvin <- 282.15
 ```
 
-For example, degrees Kelvin corresponds to `r example_kelvin - 273.15` degrees Celsius.
+
+For example, degrees Kelvin corresponds to `r example_kelvin - 273.15` degrees Celsius. **individual code call for r engine**
 
 ## Interactive Visualizations
 
