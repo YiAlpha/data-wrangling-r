@@ -1,0 +1,48 @@
+---
+title: 'HW1: Using Github and R Markdown'
+author: "YIN YI"
+date: "9/19/2018"
+output: 
+  html_document: 
+    highlight: pygments
+    keep_md: yes
+    theme: cerulean
+    toc: yes
+editor_options: 
+  chunk_output_type: console
+---
+
+## 1. Create R Markdown Document
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      fig.path="images/",
+                      cache.path="cache/",
+                      cache=FALSE,
+                      echo=TRUE,
+                      message=FALSE,
+                      warning=FALSE)
+
+```
+
+## Get some data
+
+```{r preamble, eval=FALSE, echo=TRUE, results='hide'}
+install.packages("devtools")
+devtools::install_github("rudeboybert/fivethirtyeight")
+```
+
+```{r get data}
+library(fivethirtyeight)
+data(package = "fivethirtyeight")
+?college_grad_students
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
