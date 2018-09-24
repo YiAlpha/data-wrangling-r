@@ -4,13 +4,16 @@ author: "YIN YI"
 date: "9/19/2018"
 output: 
   html_document: 
+    css: button.css
+    df_print: default
     highlight: pygments
     keep_md: yes
-    theme: cerulean
+    theme: journal
     toc: yes
 editor_options: 
-  chunk_output_type: console
+  chunk_output_type: inline
 ---
+
 
 ## 1. Create R Markdown Document
 ```{r setup, include=FALSE}
@@ -24,25 +27,101 @@ knitr::opts_chunk$set(echo = TRUE,
 
 ```
 
-## Get some data
+## 2. Get some data
 
-```{r preamble, eval=FALSE, echo=TRUE, results='hide'}
+```{r preamble, eval=FALSE, results='hide'}
 install.packages("devtools")
 devtools::install_github("rudeboybert/fivethirtyeight")
 ```
 
-```{r get data}
+Load `fivethirtyeight` package, I choose `college_grad_student` dataset-- The raw data behind the story "The Economic Guide To Picking A College Major" on [fivethirtynight websit](https://fivethirtyeight.com/features/the-economic-guide-to-picking-a-college-major/)
+```{r, eval=TRUE, echo=FALSE, results='hide'}
 library(fivethirtyeight)
-data(package = "fivethirtyeight")
+# data(package = "fivethirtyeight")
 ?college_grad_students
 ```
 
-## Including Plots
+Manually create a small table for your dataframe with two columns: variable name and variable description. Include a few variables in the table.
+```{r}
+name <- c('major_code',
+           'major',
+           'major_category',
+           'grad_total',
+           'grad_sample_size',
+           'grad_employed',
+           'grad_employed_fulltime_yearround',
+           'grad_unemployed',
+           'grad_unemployment_rate')
 
-You can also embed plots, for example:
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+
+decription <- c('Major code, FO1DP in ACS PUMS',
+'Major description',
+'Category of major from Carnevale et al',
+'Total number of people with major',
+'Sample size (unweighted) of full-time, year-round ONLY (used for earnings)',
+'Number employed (ESR == 1 or 2)',
+'Employed at least 50 weeks (WKW == 1) and at least 35 hours (WKHP >= 35)',
+'Number unemployed (ESR == 3)',
+'Unemployed / (Unemployed + Employed)')
+des <- data.frame(name, decription)
+names(des) <- c("Variable Name", "Varibale Description")
+knitr::kable(des)
+
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+## 3.Show the data
+
+Provide a simple summary of the data with `summary()` command.
+
+
+```{r,eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
+summary(college_grad_students)
+```
+
+
+Use the command datatable from the package `DT` to show an interactive table. 
+```{r, eval=TRUE, echo=FALSE, warning=FALSE, message=FALSE}
+# install.packages('DT')
+DT::datatable(college_grad_students)
+```
+
+
+Add another non-interactive table using the `kable` function in the `knit`r package.
+
+```{r, eval=TRUE, echo=FALSE, warning=FALSE,message=FALSE, cols.print=5, rows.print=5}
+knitr::kable(college_grad_students)
+```
+
+
+## 4. Add some Latex formulas
+$$ \textbf{Graduate Unemployment Rate} = -0.000 * \textbf{Total number of people with major} +  0.041$$
+
+```{r, eval=TRUE, echo=FALSE, warning=FALSE,message=FALSE}
+lm1 <- lm(grad_unemployment_rate ~ grad_total, data = college_grad_students)
+stargazer::stargazer(lm1, type = 'text')
+``` 
+
+## 5. Add a plot
+```{r, eval=TRUE, echo=TRUE, warning=FALSE,message=FALSE}
+library(ggplot2)
+scatter_plot <-ggplot(college_grad_students, 
+                      aes(grad_total, grad_unemployment_rate))+
+        geom_point()+
+        ggtitle("Total number of people with major VS Graduate Unemployment Rate")+
+        xlab("Total number of people with major")+
+        ylab("Graduate Unemployment Rate")+theme_bw()
+scatter_plot
+```
+
+
+## 6. Add a picture
+![information](images/info.jpg)
+
+## 7. More Markdown
+Markdown is a lightweight markup language with plain text formatting syntax. It is designed so that it can be converted to HTML and many other formats using a tool by the same name [^1].
+
+[^1]: https://en.wikipedia.org/wiki/Markdown
+
+
+> Good design is a lot like clear thinking made visual. -- Edward Tufte
