@@ -1,7 +1,7 @@
 ---
-title: Lorem ipsum
-author: dummy
-description: this block is YAML front matters
+title: HOMEWORK 2
+author: YI YIN
+description: Homework 2
 ---
 
 # HOMEWORK 2
