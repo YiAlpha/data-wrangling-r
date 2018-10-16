@@ -37,7 +37,7 @@ fun_names <- names(base_functions)
 
 Which function has the longest name?
 
--- `getDLLRegisteredRoutines.character` has the longest name
+**-- `getDLLRegisteredRoutines.character` has the longest name**
 
 ```{r}
 name_length <- map_dbl(fun_names, nchar)
@@ -60,7 +60,8 @@ data.frame(fun_names, num_arg)%>%
 ```
 
 Which base function has the most arguments? 
--- `scan` has the most arguments.
+
+**-- `scan` has the most arguments.**
 
 ## c) No arguments
 How many base functions have no arguments? What do you think is different about them?
@@ -70,7 +71,7 @@ data.frame(fun_names, num_arg)%>%
         filter(num_arg == 0)%>%nrow()
 ```
 
--- 224 base functions have no arguments.
+**-- 224 base functions have no arguments.**
 
 # 2. Infant Mortality and GPD per Capita
 
@@ -119,7 +120,7 @@ Run an overall regression predicting infant mortality from GDP per capita. What 
 
 -- I find a significant negetive association between infant mortality and GDP per capita
 ```{r}
-summary(lm(infmort ~ gdpcap, data = dat))
+summary(lm(infmort ~ gdpcap, data = dat))$coefficients
 ```
 
 
@@ -143,14 +144,15 @@ In a single pipeline, re-estimate the regression for each of these data frames, 
 
 
 ```{r}
-
 dat%>%split(dat$region)%>%
-        map(safely(~ lm(infmort ~ gdpcap, data = .)))%>%
-        transpose()%>%pluck("result")%>%discard(is.null)%>%
+        map(possibly(~ lm(infmort ~ gdpcap, data = .), 
+                     otherwise = NA_real_))%>%
+        discard(is.na(.) == T) %>%
         map(~ coef(.))%>%
-        map_dbl("gdpcap")%>%
-        sort()
-
+        map_dbl("gdpcap") %>% 
+        tibble(region = attr(., "names"), 
+               coef = .)%>%
+        arrange(coef)
 ```
 
 
@@ -158,27 +160,41 @@ dat%>%split(dat$region)%>%
 
 d) Regression by country
 Let’s also check if the relationship is consistent if estimated within countries. Split the overall data by country and create a nested list that contains these split data frames. Again, estimate a simple linear regression, predicting infant mortality by GDP per capita. 
-```{r}
-dat%>%split(dat$country)%>%
-        map(safely(~ lm(infmort ~ gdpcap, data = .)))%>%
-        transpose()%>%pluck("result")%>%discard(is.null)%>%
-        map(~ coef(.))%>%
-        map_dbl("gdpcap")%>%as_tibble()%>%nrow()
-
-
-dat%>%split(dat$country)%>%
-        map(safely(~ lm(infmort ~ gdpcap, data = .)))%>%
-        transpose()%>%pluck("result")%>%discard(is.null)%>%
-        map(~ coef(.))%>%
-        map_dbl("gdpcap")%>%as_tibble()%>%filter(value>0)%>%nrow()
-
-
-```
 
 
 In what percentage of the within-country regressions do we find a positive relationship (at the 95% confidence level) between GDP per capita and infant mortality? 
 
--- 19/185 = 0.1027027 = 10.3%
+
+```{r}
+# extract slope p-value for 95% confidence level
+pvalue <- dat%>%split(dat$country)%>%
+        map(possibly(~ lm(infmort ~ gdpcap, data = .),
+                     otherwise = NA_real_))%>%
+        discard(is.na(.) == T) %>%
+        map(summary)%>%map_dbl(possibly(
+                        ~ .$coefficients['gdpcap', 'Pr(>|t|)'],
+                         otherwise = NA_real_)) 
+```
+
+
+**-- We find 6.06% the within-country regressions have a positive relationship (at the 95% confidence level) between GDP per capita and infant mortality**
+
+```{r}
+dat%>%split(dat$country)%>%
+        map(possibly(~ lm(infmort ~ gdpcap, data = .),
+                     otherwise = NA_real_))%>%
+        discard(is.na(.) == T) %>%
+        map(summary)%>%map_dbl(possibly(
+                        ~ .$coefficients['gdpcap', 'Estimate'],
+                         otherwise = NA_real_))%>%
+        tibble(country = attr(., "names"), 
+                  coef = .)%>%cbind(pvalue)%>%
+        filter(pvalue < 0.05)%>%
+        mutate(pos_slope = ifelse(coef >0, T, F))%>%
+        group_by(pos_slope)%>%summarise(n = n())%>%
+        mutate(percent = n/sum(n)* 100)
+
+```
 
 
 Make a histogram of the slope coefficients to illustrate the variation of the estimated relationship. 
@@ -188,37 +204,82 @@ dat%>%split(dat$country)%>%
         map(safely(~ lm(infmort ~ gdpcap, data = .)))%>%
         transpose()%>%pluck("result")%>%discard(is.null)%>%
         map(~ coef(.))%>%
-        map_dbl("gdpcap")%>%hist(breaks = 100,col = "blue1")
+        map_dbl("gdpcap")%>%hist(breaks = 100,
+                                 col = "#53B2D6",
+                                 border = '#53B2D6',
+                                 xlab = "Coefficients", 
+                                 main = "Histogram of Slope Coefficients")
 
 ```
 
 
 Which country cases are most at odds with the overall regression estimated in part (b)?
 
+-- overall regression estimated in part (b) is -0.0009353066.
+
+-- **With regard to the absolute value difference, `Malawi` are most at odds with the overall regression estimated.**
 
 
-Note: For some countries, there is probably insufficient or no data to estimate the model. I suggest using one of the functions dealing with error (safely / possibly) to make sure you obtain the results for the other country regressions. Alternatively, you can remove countries with insufficient data before the regressions.
+
+```{r}
+dat%>%split(dat$country)%>%
+        map(possibly(~ lm(infmort ~ gdpcap, data = .),
+                     otherwise = NA_real_))%>%
+        discard(is.na(.) == T) %>%
+        map(summary)%>%
+        map_dbl(possibly(
+                        ~ .$coefficients['gdpcap', 'Estimate'],
+                         otherwise = NA_real_))%>%
+        tibble(country = attr(., "names"), 
+                  coef = .)%>%cbind(pvalue)%>%
+        mutate(diff = abs(coef - (-0.0009353066)))%>%
+        arrange(desc(diff))%>%filter(row_number() == 1)
+```
+
+-- **With regard to the largest positive slope, `Madagascar` are most at odds with the overall regression estimated.**
+```{r}
+dat%>%split(dat$country)%>%
+        map(possibly(~ lm(infmort ~ gdpcap, data = .),
+                     otherwise = NA_real_))%>%
+        discard(is.na(.) == T) %>%
+        map(summary)%>%map_dbl(possibly(
+                        ~ .$coefficients['gdpcap', 'Estimate'],
+                         otherwise = NA_real_))%>%
+        tibble(country = attr(., "names"), 
+                  coef = .)%>%cbind(pvalue)%>%
+        arrange(desc(coef))%>%filter(row_number() == 1)
+
+```
+
 
 e) Added squared term
 Let’s see if we can improve the models slightly. Using the list of country data frames from (d), estimate regressions of infant mortality on GDP per capita and the square of GDP per capita. Compare the adjusted R-Squareds of the models with and without the added squared term of GDP per capita. 
 
 Provide the average model adjusted R-squared with and without the squared term. Would you recommend to keep the squared term or not?
 
+**Without the added squared term**
 ```{r}
 
 dat%>%split(dat$country)%>%
         map(safely(~ lm(infmort ~ gdpcap, data = .)))%>%
         transpose()%>%pluck("result")%>%discard(is.null)%>%
-         map(summary) %>% map_dbl("r.squared")%>%mean()
+         map(summary) %>% map_dbl("adj.r.squared")%>%mean()
+
+```
+
+**With the added squared term**
+
+**The average model adjusted R-squared with the squared term is 0.08 larger than above**
+```{r}
 
 dat%>%split(dat$country)%>%
         map(safely(~ lm(infmort ~ I(gdpcap^2)+ gdpcap, data = .)))%>%
         transpose()%>%pluck("result")%>%discard(is.null)%>%
-         map(summary) %>% map_dbl("r.squared")%>%mean()
+         map(summary) %>% map_dbl("adj.r.squared")%>%mean()
 
 
 ```
 
-I recommend to keep the squared term or not?
+I recommend to keep the squared term since the average model adjusted R-squared with the squared term is larger than the without counterpart.
 
 
