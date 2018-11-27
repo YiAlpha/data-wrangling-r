@@ -1,0 +1,103 @@
+---
+title: "HW9：Web Scraping with Selectors"
+author: "Document Author"
+date: "`r Sys.Date()`"
+output:
+  prettydoc::html_pretty:
+    theme: architect
+    highlight: github
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      fig.path="images/",
+                      cache.path="cache/",
+                      cache=TRUE,
+                      message=FALSE,
+                      warning=FALSE)
+
+```
+
+# 1. Get HTML
+```{r}
+library(rvest)
+library(tidyverse)
+library(dplyr)
+url <- "https://en.wikipedia.org/wiki/Mitch_McConnell"
+wiki <- read_html(url)
+```
+
+# 2. Get the info box
+
+```{r}
+wiki %>%
+html_node("table.infobox") %>%
+html_text()
+```
+
+
+
+# 3. Make a data frame
+Parse the infobox table HTML you obtained above into a data frame.
+Name the columns of the table you obtain key and value. So, in the example for Mitch McConnell, “Deputy” would be the key, and the content information (i.e. the value) is “John Cornyn”.
+Filter the data frame (and rename variables if necessary) to the “Full name”, “Political Party”, and “Children”. Use this selection of variables for all subsequent questions.
+
+```{r}
+df <- wiki %>% 
+  html_nodes(".infobox") %>%
+  html_table(header=F)%>%
+        .[[1]]%>%
+        as_data_frame()%>%
+        filter(X1%in%c("Children", "Political party")| row_number() == 1)%>%
+        rename(key = X1, value = X2)
+df[1,1] <- "Full Name"
+df
+```
+
+# 4. Make a function
+
+a single input url (a Wikipedia URL) and outputs the data frame of the format above. 
+```{r}
+get_wiki_info  <- function(url){
+        df<- read_html(url)%>%
+                html_nodes(".infobox") %>%
+                html_table(header=F)%>%
+                .[[1]]%>%
+                as_data_frame()%>%
+                filter(X1%in%c("Children", "Political party")| row_number() == 1)%>%
+                rename(key = X1, value = X2)
+        df[1,1] <- "Full Name"
+        return(df)
+}
+```
+
+Show how your function works on the following two URLs:
+https://en.wikipedia.org/wiki/Tammy_Duckworth
+https://en.wikipedia.org/wiki/Susan_Collins
+```{r}
+get_wiki_info("https://en.wikipedia.org/wiki/Tammy_Duckworth")
+get_wiki_info("https://en.wikipedia.org/wiki/Susan_Collins")
+```
+
+5. Get all senators’ pages
+
+
+On this page (https://en.wikipedia.org/wiki/Current_members_of_the_United_States_Senate) you find a list of all current senators of the U.S. congress.
+Import the site and obtain a vector with the URLs for the Wikipedia sites of all 100 members of congress (hint: the function xml_attr is one option). 
+
+```{r}
+library(xml2)
+library(httr)
+```
+
+
+```{r}
+url <- "https://en.wikipedia.org/wiki/Current_members_of_the_United_States_Senate"
+
+links<- url %>%
+  read_html() %>%
+  html_nodes(xpath='//table[contains(@id, "senators")]//a')%>%
+        xml_attr("href")
+```
