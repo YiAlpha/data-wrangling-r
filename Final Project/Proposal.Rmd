@@ -1,0 +1,65 @@
+---
+title: "Final Project Proposal"
+author: "Document Author"
+date: "`r Sys.Date()`"
+output:
+  prettydoc::html_pretty:
+    theme: architect
+    highlight: github
+---
+
+# Name of project: 
+- Chinese General Social Survey (CGSS) Data Package
+
+# Type of project: 
+- Data (A1)
+
+
+# Brief description of the purpose:
+Chinese General Social Survey (CGSS) data is stored on Chinese National Survey Data Archive [(CNSDA)](http://cnsda.ruc.edu.cn/index.php?r=projects/index). There are several shortcomings of the CGSS data provide on CNSDA.
+
+- 1) On CNSDA, users could obtain the full series Chinese General Social Sruvey data only via clicking the each year data repository one by one, which is tedious and error-prone.
+
+- 2) CNSDA only provide Stata and SPSS data format. Because of the Chinese encoding, CGSS is not friendly to R users.
+
+- 3) In current CGSS data, chinese labels are associated with variables, which is error-prone for different encoding system. 
+
+- 4) There is quick reference within the dataset to facilitate the scholars find the variablesare they are interested in, however, reading the questionnaire requires lots of time
+
+- 5) There is no offical English translation of CGSS quetionaire, and English coded dataset, which prevent non-chinese reader to use this dataset.
+
+Therefore, in this project, I plan to create a package including 
+
+- 1) all current available CGSS data (from 2003 to 2015) in R-friendly format
+
+- 2) English translation of all questions and labels in Chinese
+
+- 3) Quick reference and search function for both Chinese and English user to find the variables they are interested in and check the availability across year
+
+- 4) Function to generate Brief summary statistics for variable(s)
+
+- 5) Function plot map for distribution of variable answers over different provice
+
+
+# Links to data sources / API etc.  
+- 1) Download all CGSS data from Chinese National Survey Data Archive [(CNSDA)](http://cnsda.ruc.edu.cn/index.php?r=projects/index), transform Stata/SPSS to R.data format.
+
+- 2) Extract all questions in the dataset(s), create a data frame called codebook, to pair the question and the question index. Build a search function, where the input is some string, and the output is question and question index in CGSS match that string, the availability across year.
+
+
+- 3) Use **Google Translation** API to obtain the English translation for all questions and labels in Chinese, create English version codebook, the search function should apply to the English version of codebook.
+
+- 4) Build function to generate Brief summary statistics for variable(s)
+
+- 5) Use **Google map API** to map the distribution of variable answers over different provice
+
+# Hurdles 
+- 1) The volume of CGSS data across year is large, how to enable the user specify the data they want, other than load into the environment once.
+
+- 2) Connect **Google Translation API** to translate all the question automatically
+
+- 3) Connect **Google ma API**, match the province in the dataset to Geocode to produce Chinese map, let the user to specify the variable.
+
+Connect **Google Translation API** is required to generate English version codebook. Connect **Google ma API** is optional for data obtain purpose.
+
+
