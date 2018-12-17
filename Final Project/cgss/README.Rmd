@@ -1,0 +1,20 @@
+---
+output: github_document
+---
+
+<!-- README.md is generated from README.Rmd. Please edit that file -->
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.path = "man/figures/README-",
+  out.width = "100%"
+)
+```
+# cgssr
+
+Provide R-friendly format data of Chinese General Social Survey (CGSS); 
+    English translation of survey questions and answers from Chinese;
+    Built-in CGSS codebook in Chinese and English Version;
+    Search function for both Chinese and English user to find the variables via keywords.

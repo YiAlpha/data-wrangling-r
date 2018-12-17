@@ -1,0 +1,23 @@
+cgss2003                Chinese General Social Survey 2003.
+cgss2005                Chinese General Social Survey 2005.
+cgss2006                Chinese General Social Survey 2006.
+cgss2008                Chinese General Social Survey 2008.
+codebook2003_cn         Codebook for CGSS 2003 in Chinese.
+codebook2003_en         Codebook for CGSS 2003 in English.
+codebook2005_cn         Codebook for CGSS 2005 in Chinese.
+codebook2005_en         Codebook for CGSS 2005 in English.
+codebook2006_cn         Codebook for CGSS 2006 in Chinese.
+codebook2006_en         Codebook for CGSS 2006 in English.
+codebook2008_cn         Codebook for CGSS 2008 in Chinese.
+codebook2008_en         Codebook for CGSS 2008 in English.
+codebook_trans          Use Google Translation API to translate all the
+                        question and answer label into English. Build
+                        Chinese General Social Survey codebook in both
+                        English and Chinese version.
+dta2r                   Transform General Social Survey Source Data to
+                        rda format.
+ques_search_cn          Search variables in the Chinese Codebook with
+                        keywords in the question.
+ques_search_en          Search variables in the English Codebook with
+                        keywords in the question.
+save_trans_code         Save English and Chinese Codebook
