@@ -1,0 +1,241 @@
+---
+title: "Wrangling Advance: Build Pipeline"
+author: "Yi Yin"
+date: "2018/10/16"
+output:
+  prettydoc::html_pretty:
+    theme: architect
+    highlight: github
+editor_options: 
+  chunk_output_type: console
+---
+# Scope
+- Build pipeline on World Bank data set 
+- Explore the relationship between infant mortality and GPD per capita over time 
+- Group data by region/country to compare with the overall regression
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      fig.path="images/",
+                      cache.path="cache/",
+                      cache=TRUE,
+                      message=FALSE,
+                      warning=FALSE)
+
+```
+
+
+```{r, echo=FALSE}
+content <- mget(ls("package:base"), inherits = TRUE)
+base_functions <- Filter(is.function, content)
+rm(content)
+library(purrr)
+library(dplyr)
+```
+
+# Cleaning
+## Slice and Rename
+
+Use the [`WDI` package](https://cran.r-project.org/web/packages/WDI/WDI.pdf) to obtain country-year data on infant mortality and GDP per capita from the World Bank database. 
+
+The indicator short names in the World Development Indicators are:  
+
+  - `NY.GDP.PCAP.PP.KD` - GDP per capita, PPP (constant 2005 international)  
+  - `SP.DYN.IMRT.IN` - Mortality rate, infant (per 1,000 live births)
+
+Rename two variables to readable name: infant mortality (`infmort`) and GPD per capita (`gdpcap`). 
+
+```{r}
+library(WDI)
+wdi <- WDI(country = "all", 
+    indicator = c("NY.GDP.PCAP.PP.KD", "SP.DYN.IMRT.IN"), 
+    start = 1960,
+    end = 2017, 
+    extra=TRUE)
+
+dat<-wdi%>%dplyr::rename(gdpcap = NY.GDP.PCAP.PP.KD,
+                    infmort = SP.DYN.IMRT.IN)%>%
+        dplyr::filter(longitude != "", latitude != "")
+
+
+
+```
+
+## Sorting
+
+Present a list of countries with the 5 highest and the 5 lowest infant mortality rates in 2017 along with their GDP per capita in that year.
+
+```{r}
+# 5 highest
+dat%>%filter(year == 2017)%>%
+        arrange(desc(infmort))%>%
+        filter(between(row_number(), 1, 5))%>%
+        select(country, infmort, gdpcap)%>%
+        # and 5 lowest
+        dplyr::full_join(dat%>%filter(year == 2017)%>%
+        arrange(infmort)%>%
+        filter(between(row_number(), 1, 5))%>%
+        select(country, infmort, gdpcap))
+
+
+```
+
+
+## Overall Regression
+Run an overall regression predicting infant mortality from GDP per capita. I find a significant negetive association between infant mortality and GDP per capita
+```{r}
+summary(lm(infmort ~ gdpcap, data = dat))$coefficients
+```
+
+
+### Scatter Plot
+```{r}
+library(ggplot2)
+dat%>%select(infmort, gdpcap)%>%
+       ggplot(aes(gdpcap, infmort))+
+        geom_point()+
+        geom_smooth(method = lm, se = FALSE)+
+        ggtitle('Infant mortality by GDP per capita')+
+        theme_bw(base_size = 11, base_family = "Palatino")+
+        theme(plot.title = element_text(hjust = 0.5))
+        
+```
+
+## Regression by Region
+Let’s see if the overall relationship holds within world regions. 
+
+Split the the data by region and create a nested list that contains these split data frames.
+
+Build a single pipeline, re-estimate the regression for each of these data frames, obtain the coefficient estimates for the slope for each region and present them in a table (sorted by size of the coefficient).
+
+
+```{r}
+dat%>%split(dat$region)%>%
+        map(possibly(~ lm(infmort ~ gdpcap, data = .), 
+                     otherwise = NA_real_))%>%
+        discard(is.na(.) == T) %>%
+        map(~ coef(.))%>%
+        map_dbl("gdpcap") %>% 
+        tibble(region = attr(., "names"), 
+               coef = .)%>%
+        arrange(coef)
+```
+
+
+
+
+## Regression by Country
+
+Let’s also check if the relationship is consistent if estimated within countries. Split the overall data by country and create a nested list that contains these split data frames. Again, estimate a simple linear regression, predicting infant mortality by GDP per capita. 
+
+We find 6.06% the within-country regressions have a positive relationship (at the 95% confidence level) between GDP per capita and infant mortality
+
+```{r}
+# extract slope p-value for 95% confidence level
+pvalue <- dat%>%split(dat$country)%>%
+        map(possibly(~ lm(infmort ~ gdpcap, data = .),
+                     otherwise = NA_real_))%>%
+        discard(is.na(.) == T) %>%
+        map(summary)%>%map_dbl(possibly(
+                        ~ .$coefficients['gdpcap', 'Pr(>|t|)'],
+                         otherwise = NA_real_)) 
+```
+
+
+```{r}
+dat%>%split(dat$country)%>%
+        map(possibly(~ lm(infmort ~ gdpcap, data = .),
+                     otherwise = NA_real_))%>%
+        discard(is.na(.) == T) %>%
+        map(summary)%>%map_dbl(possibly(
+                        ~ .$coefficients['gdpcap', 'Estimate'],
+                         otherwise = NA_real_))%>%
+        tibble(country = attr(., "names"), 
+                  coef = .)%>%cbind(pvalue)%>%
+        filter(pvalue < 0.05)%>%
+        mutate(pos_slope = ifelse(coef >0, T, F))%>%
+        group_by(pos_slope)%>%summarise(n = n())%>%
+        mutate(percent = n/sum(n)* 100)
+
+```
+
+
+### Histogram of the Slope Coefficients
+
+```{r}
+dat%>%split(dat$country)%>%
+        map(safely(~ lm(infmort ~ gdpcap, data = .)))%>%
+        transpose()%>%pluck("result")%>%discard(is.null)%>%
+        map(~ coef(.))%>%
+        map_dbl("gdpcap")%>%hist(breaks = 100,
+                                 col = "#53B2D6",
+                                 border = '#53B2D6',
+                                 xlab = "Coefficients", 
+                                 main = "Histogram of Slope Coefficients")
+
+```
+
+With regard to the absolute value difference, `Malawi` are most at odds with the overall regression estimated.
+
+
+
+```{r}
+dat%>%split(dat$country)%>%
+        map(possibly(~ lm(infmort ~ gdpcap, data = .),
+                     otherwise = NA_real_))%>%
+        discard(is.na(.) == T) %>%
+        map(summary)%>%
+        map_dbl(possibly(
+                        ~ .$coefficients['gdpcap', 'Estimate'],
+                         otherwise = NA_real_))%>%
+        tibble(country = attr(., "names"), 
+                  coef = .)%>%cbind(pvalue)%>%
+        mutate(diff = abs(coef - (-0.0009353066)))%>%
+        arrange(desc(diff))%>%filter(row_number() == 1)
+```
+
+With regard to the largest positive slope, `Madagascar` are most at odds with the overall regression estimated.
+```{r}
+dat%>%split(dat$country)%>%
+        map(possibly(~ lm(infmort ~ gdpcap, data = .),
+                     otherwise = NA_real_))%>%
+        discard(is.na(.) == T) %>%
+        map(summary)%>%map_dbl(possibly(
+                        ~ .$coefficients['gdpcap', 'Estimate'],
+                         otherwise = NA_real_))%>%
+        tibble(country = attr(., "names"), 
+                  coef = .)%>%cbind(pvalue)%>%
+        arrange(desc(coef))%>%filter(row_number() == 1)
+
+```
+
+
+## Added Squared Term
+Estimate regressions of infant mortality on GDP per capita and the square of GDP per capita. Compare the adjusted R-Squareds of the models with and without the added squared term of GDP per capita. 
+
+
+### Without the Added Squared Term
+```{r}
+
+dat%>%split(dat$country)%>%
+        map(safely(~ lm(infmort ~ gdpcap, data = .)))%>%
+        transpose()%>%pluck("result")%>%discard(is.null)%>%
+         map(summary) %>% map_dbl("adj.r.squared")%>%mean()
+
+```
+
+### With the Added Squared Term
+
+The average model adjusted R-squared with the squared term is 0.08 larger than above.
+```{r}
+
+dat%>%split(dat$country)%>%
+        map(safely(~ lm(infmort ~ I(gdpcap^2)+ gdpcap, data = .)))%>%
+        transpose()%>%pluck("result")%>%discard(is.null)%>%
+         map(summary) %>% map_dbl("adj.r.squared")%>%mean()
+
+
+```
+
+I recommend to keep the squared term since the average model adjusted R-squared with the squared term is larger than the without counterpart.
+
+

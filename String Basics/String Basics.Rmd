@@ -1,0 +1,157 @@
+---
+title: "String Basics: Analyze the Book *Ulysses* "
+author: "Yi Yin"
+date: "2018/10/29"
+output:
+  prettydoc::html_pretty:
+    theme: architect
+    highlight: github
+editor_options: 
+  chunk_output_type: console
+---
+
+# Scope
+- Select words with basic rules
+- Select words with regular expression
+- Basic frequenct summary
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      fig.path="images/",
+                      cache.path="cache/",
+                      cache=TRUE,
+                      message=FALSE,
+                      warning=FALSE)
+
+```
+
+# Word Selection
+
+I'm going to analyze *Ulysses* by James Joyce. Firstly, download the book from project Gutenberg and tokenize the text.
+```{r, include=FALSE, warning=FALSE}
+
+library(gutenbergr)
+library(tidyverse)
+# get the book Ulysses
+gutenberg_works(author == "Joyce, James")
+book <- gutenberg_download(4300)
+book%>%head()
+
+# Load package dealing with text
+library(tidytext)
+# Tokenize lines in the book
+words <- book %>%
+  unnest_tokens(word, text) %>%
+  select(word)
+words%>%head()
+
+```
+
+
+
+
+## Words with z
+
+Select all unique words that contain at least one z.
+
+```{r, warning=FALSE}
+z_words <- words$word%>%str_subset("z")%>%unique()
+```
+
+Among the z-words, tabulate how many z’s the words contain (i.e. how many words contain one z, two z’s etc.). 
+
+```{r, warning=FALSE}
+z_words%>%str_count("z")%>%table()
+```
+
+Find the z-word(s) with z’s that are as far apart as possible (i.e. we are interested in the distance between two z’s in the word. That means the word could contain more than two z’s.).
+
+```{r, warning=FALSE}
+z_2more <- z_words%>%
+        str_split("z", simplify = TRUE) %>% 
+        as_tibble(.name_repair = ~ c("V1", "V2","V3","V4")) %>% 
+        cbind(z_words)%>%
+        rename(full_word = z_words)%>%
+        filter(V3!="")%>%
+        mutate(z1_z2 = nchar(V2))%>%
+        mutate(z2_z3 = ifelse(V4 =="", NA, nchar(V3)))%>%
+        mutate(z1_z3 =  ifelse(V4 =="", NA,
+                               nchar(V2)+nchar(V3)))
+
+# Max distance between first z and second z
+z_2more%>%top_n(1, z1_z2)
+
+# Max distance between second z and third z
+z_2more%>%top_n(1, z2_z3)
+
+# Max distance between first z and third z
+z_2more%>%top_n(1, z1_z3)
+
+
+```
+
+Therefore, `százharminczbrojúgulyás` is the word with largest distance between "z"s.
+
+## Vowels
+The number of unique words start and end with a vowel
+
+831 words start and end with a vowel
+```{r}
+v_words <- words$word%>%str_subset("^[aeiou].*[aeiou]$")%>%unique()
+length(v_words)
+
+```
+
+The number of words that start with two or more vowels? 
+
+344 words start with two or more vowels.
+```{r}
+words$word%>%str_subset("^[aeiou]{2,}")%>%unique()%>%length()
+```
+
+
+69 words start with two or more vowels and end with a vowel.
+```{r}
+v_words%>%str_subset("^[aeiou]{2,}")%>%unique()%>%length()
+```
+
+Find and display the word(s) with the most consecutive vowels (anywhere in the word).
+
+`frseeeeeeeeeeeeeeeeeeeefrong` is the word with the most consecutive vowels.
+```{r}
+
+c_vowels <- words$word%>%
+        str_extract_all("[aeiou]{2,}", 
+                        simplify = TRUE)%>% 
+        as_tibble(.name_repair = ~ c("V1", "V2","V3","V4","V5")) %>% 
+        cbind(words$word)%>%
+        mutate(l1 = nchar(V1))%>%
+         mutate(l2 = nchar(V2))%>%
+                 mutate(l3 = nchar(V3))%>%
+                  mutate(l4 = nchar(V4))%>%
+                 mutate(l5 = nchar(V5))
+  
+
+# find the max number of consecutive vowels
+map_dbl(c_vowels[,8:11], max)
+
+c_vowels%>% filter(l1 == 20)%>%select(`words$word`)
+```
+
+
+## English spelling
+Empirically verify the rule “i before e except after c”. No need to become a linguist here; simply tabulate the proportion of words when the rule holds and when it does not.
+```{r}
+
+eng <- words$word%>%
+        str_subset("(^ie)|[abd-z]ie|cei")%>%
+        unique()
+
+eng_n <- words$word%>%str_subset("(^ei)|[abd-z]ei|cie")%>%
+        unique()
+
+eng_spell <- matrix(c(length(eng), length(eng_n)), 1)
+colnames(eng_spell) <- c( 'English spelling', "Not English spelling")
+prop.table(eng_spell)*100
+
+
+```

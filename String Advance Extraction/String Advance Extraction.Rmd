@@ -1,0 +1,228 @@
+---
+title: "String Advance: Analyze Tweets for NYC Subway Delay Pattern"
+author: "Yi Yin"
+date: "2018/11/17"
+output:
+  prettydoc::html_pretty:
+    theme: architect
+    highlight: github
+editor_options: 
+  chunk_output_type: console
+---
+# Scope
+- Extract multiple formats of data from string (noun, time, number, etc.)
+- Manipulate natural language strings without preset tokenization.
+- Visualize and generate insights from text analysis.
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      fig.path="images/",
+                      cache.path="cache/",
+                      cache=TRUE,
+                      message=FALSE,
+                      warning=FALSE)
+
+```
+
+# Statistical Analysis on Text Data
+
+I'm going to learn the pattern of NYC subway delay from tweets on the New York City subway services' official twitter account.
+
+
+## Data Slice
+
+```{r}
+rm(list = ls())
+mta <- read_rds("mta.RDS")
+
+data <-mta%>%filter(is_retweet == FALSE,
+                    str_detect(text, "^@.*") == FALSE)%>%
+        select(text, created_at)
+```
+
+## Text Extraction
+
+Time of Delay
+
+Pattern: XX trains are running with delays because of xx problems.
+```{r}
+library(lubridate)
+library(tidyverse)
+timed <- data%>%
+        filter(str_detect(text, "trains are running with delays") == TRUE)%>% 
+        mutate(w_day = wday(created_at, label = T),
+               clock = lubridate::hour(created_at))%>%mutate(period=
+    case_when(
+      between(clock, 6, 9) ~ "mornings",
+       between(clock, 10, 14) ~ "mid-day",
+       between(clock, 15, 17) ~ "afternoon",
+      between(clock, 18, 21) ~ "evening",
+      between(clock, 22, 24) ~ "night",
+      between(clock, 0, 5) ~ "night"
+    ))
+
+```
+
+## Frequency Visualization
+
+A table that shows delays by day of the week and time of day. Use the following time periods: mornings (6-10), mid-day (10-15), afternoon (15 - 18), evening (18- 22), and night (22 - 24; 0-6). 
+
+### Delays by Day of the Week 
+```{r}
+timed%>%group_by(w_day)%>%summarise(n=n())
+
+```
+
+```{r, echo=FALSE}
+timed%>%group_by(w_day)%>%summarise(n=n())%>%
+        ggplot(aes(w_day, n, fill = 1/n))+
+        geom_bar(stat="identity")+ 
+        xlab('Day of the week')+
+        ylab('Number of Delays')+
+        theme_bw(base_family = 'Palatino')+
+        theme(legend.position="none")
+
+```
+
+### Delays by and Time of Day
+
+```{r}
+timed$period <- factor(timed$period, ordered = TRUE, 
+                    levels = c("mornings", 
+                               "mid-day",
+                               "afternoon", 
+                               "evening",
+                               "night"))
+
+timed%>%group_by(period)%>%summarise(n=n())
+```
+
+```{r, echo=FALSE}
+timed%>%group_by(period)%>%summarise(n=n())%>%
+        ggplot(aes(period,n ,fill = 1/n))+
+        geom_bar(stat="identity")+ 
+        xlab('Time of day')+
+        ylab('Number of Delays')+
+        theme_bw(base_family = 'Palatino')+
+        theme(legend.position="none")
+
+```
+
+###  Type of Delay
+Among the set of tweets in part b), try to categorize the types of delays. No need to be exhaustive but try to pick up the top 3-5 reasons for delays. 
+```{r}
+typed <- timed$text%>%
+        str_split("because of", n= 2, simplify = TRUE)%>%
+        .[,2]%>%word(1, 4)%>%
+        as_tibble()%>%
+        rename(reason = value)
+
+
+
+typed%>%filter(is.na(reason) == F )%>%
+        group_by(reason)%>%
+        summarise(n = n())%>%
+        top_n(20, n)%>% arrange(desc(n))
+        
+        
+```
+
+Combine them into reasonable categories if necessary (e.g. signal problems, medical, technical problems, etc.). Provide an overview (table or graph) of which types of delays are most common.
+
+```{r}
+typed%>%filter(is.na(reason) == F )%>%
+        group_by(reason)%>%
+        summarise(n = n())%>%
+        top_n(6, n)%>% arrange(desc(n))%>%
+        ggplot(aes(reason,n ,fill = 1/n))+
+        geom_bar(stat="identity")+ 
+        xlab('Reason')+
+        ylab('Number of Delays')+
+        theme_bw(base_family = 'Palatino')+
+        theme(legend.position="none")
+
+```
+
+###  Which train lines affected?
+
+Write a regex pattern that captures which train lines are affected by delays. 
+```{r}
+lined <- timed%>%select(text, w_day)%>% mutate(train = str_extract(text, 
+                                  "(.*)(?= train[s]* are)"))
+
+lined <- lined%>% 
+        mutate(train_s = str_remove_all(train,
+                                        ".*bound[\\b\\s]"))%>%
+        mutate(weekend = ifelse(w_day %in% c("Sun", "Sat"), 
+                                "weekend", 
+                                "weekday"))
+
+
+lines <-lined%>% select(train_s, weekend)%>% 
+        mutate(line = str_remove_all(train_s, "\\b[A-Za-z]{2,}\\b")%>%
+        str_remove_all("[^A-Z0-9]")%>%
+        str_replace_all('([A-Z0-9])\\1+', '\\1'))%>%
+        select(-train_s)%>%
+        mutate(i = row_number())
+
+# max(map_dbl(lines$line, nchar))
+# lines$i[nchar(lines$line) == 8]
+
+line_n <- paste0("line", 1:8)
+
+library(reshape2)
+
+lines <- cbind(reshape2::colsplit(lines$line, "", names = line_n),
+               lines[,3], lines[,1])
+
+tidy <- lines %>% 
+  reshape2::melt(variable.name = "note",
+                 value.name = "train",
+                 id.vars = c("i", 'weekend'))
+
+```
+
+A summary of which train lines are affected by weekday vs. weekend.
+
+```{r, fig.align='center', fig.height=10, fig.width= 15}
+
+tidy%>%filter(train !="")%>%
+        select(train,weekend)%>%
+        group_by(train,weekend)%>%summarise(n = n())%>%
+        mutate(weekend, percent = paste0(sprintf("%1.1f",
+                                          n/sum(n)*100),"%"))%>%
+  ggplot(aes(train, n, fill= weekend))+
+        geom_bar(stat="identity") +
+        geom_text(aes(label=percent, y=n-15), size = 3.8,
+                  vjust=0.2)+
+        ylab("number of delays")+ xlab("line")+
+        ggtitle('Lines affected by Weekday vs. Weekend')+
+        theme_bw(base_family = "Palatino", base_size = 13)+
+        theme(plot.title = element_text(hjust = 0.5),
+              legend.position="bottom")
+```
+
+The graph above shows us weekdays have a higher chance for NYC subway delays, but this is inconsistent with my personal experience: I encountered delay almost every weekend.
+
+Then I realized that there are five days counted as weekdays while only two days on weekends. So we need to normalize the probability.
+
+```{r,fig.height=10, fig.width= 12}
+tidy%>%filter(train !="")%>%
+        select(train,weekend)%>%
+        group_by(train,weekend)%>%summarise(n = n())%>%
+        mutate(probability =  paste0(sprintf("%1.1f",
+                                             case_when(weekend=="weekday" ~ n/sum(n)*500/7, 
+                                       weekend=="weekend" ~ n/sum(n)*200/7)),"%"))%>%
+        ggplot(aes(train, n, fill= weekend))+
+        geom_bar(stat="identity",position=position_dodge()) +
+      geom_text(aes(label=probability, y=n+2), size = 3.2,
+                  vjust=0.1)+
+        ylab("number of delays")+ xlab("line")+
+        ggtitle('Lines affected by Weekday vs. Weekend\n(Normalized Probability)')+
+        theme_bw(base_family = "Palatino", base_size = 13)+
+        theme(plot.title = element_text(hjust = 0.5),
+              legend.position="bottom")+
+        scale_fill_brewer(palette="Accent")
+```
+
+
+Alas, still, there is a much higher chance of delay during weekdays. Then I realized I lived in the upper west side near Columbia University as a graduate student. On weekdays, I seldom ride on the metro, so I don't retain subway delays on weekdays. But on weekends, I take subways to midtown and downtown and always come across line cancellation, tunnel construction, routine changes, etc. 😂  Such an excellent example on data analysis triumphs anecdotes and biased experiences.

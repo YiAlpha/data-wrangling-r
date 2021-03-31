@@ -2,7 +2,16 @@
 .Rhistory
 .RData
 .Ruserdata
-data_cd/
-CGSS_data/
+.DS_Store
+/*/cache/
+/*/images
+/*/.RDS
+/*/*.cvs
+/*/.DS_Store
+/*/*.Rproj.user
+/*/*.Rproj
+
+
+
 
 
