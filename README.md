@@ -3,7 +3,7 @@ Menu Page: https://yialpha.github.io/data-wrangling-r
 
 Data wrangling, sometimes referred to as data munging, is the process of transforming and mapping data from one "raw" data form into another format with the intent of making it more appropriate and valuable for a variety of downstream purposes such as analytics.
 
-This repository presents four projects on wrangling both numeric and text format data into real life insights.
+This repository presents four wrangling projects on numeric and text format to turn unstructed data into insights.
 
 You can look at the code and my write-up by clicking the link in the title of projects below.
 
